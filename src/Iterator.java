@@ -29,7 +29,7 @@ public abstract class Iterator {
 
     double power;
 
-    Complex c, a;
+    Complex c;
 
 
     // ========================================================
@@ -91,14 +91,6 @@ public abstract class Iterator {
 
     protected Complex getC() {
         return this.c;
-    }
-
-    void setA(Complex a) {
-        this.a = a;
-    }
-
-    Complex getA() {
-        return this.a;
     }
 
 
