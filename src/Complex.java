@@ -185,17 +185,14 @@ public class Complex {
      * @return   The division z/b.
      */
     public Complex divide(Complex b) {
-        Complex answerNumerator, answer;
-        double   answerDenominator;
-
-        answerDenominator = b.abs2();
-        answerNumerator   = this.multiply(b.conjugate());
-        answer = answerNumerator.multiply(1.0/answerDenominator);
+        double answerDenominator = b.abs2();
+        Complex answerNumerator = this.multiply(b.conjugate());
+        Complex answer = answerNumerator.multiply(1.0/answerDenominator);
         return answer;
     }
 
     /**
-     * Raise this complex number to a double power
+     * Raise this complex number to a real power
      *
      * @param n   The power to be raised to
      * @return    The value of z^n
@@ -238,57 +235,5 @@ public class Complex {
         }
 
         return answer;
-    }
-
-    // ========================================================
-    // Tester function.
-    // ========================================================
-
-    public static void main(String[] args) {
-        // Test all of the constructor functions.
-        Complex A = new Complex(1.0, 1.0);
-        Complex B = new Complex(1.0);
-        Complex C = new Complex();
-
-        // Test the converters.
-        System.out.println("Constructor test:");
-        System.out.println("A = "+A.toString());
-        System.out.println("B = "+B.toString());
-        System.out.println("C = "+C.toString());
-
-        // Test accessor/mutators.
-        System.out.println("\nSetting imag(C) = real(C) + 1:");
-        C.setImag(C.getReal() + 1.0);
-        System.out.println("C = "+C.toString());
-
-        // Now test operations for both complex and real numbers
-        System.out.println("\nTesting operators:");
-        System.out.println("abs(A)   = "+A.abs());
-        System.out.println("abs2(A)  = "+A.abs2());
-        System.out.println("abs(B)   = "+B.abs());
-        System.out.println("abs2(B)  = "+B.abs2());
-        System.out.println("conj(A)  = "+A.conjugate());
-        System.out.println("conj(B)  = "+B.conjugate());
-        System.out.println("neg(A)   = "+A.minus());
-        System.out.println("neg(B)   = "+B.minus());
-        System.out.println("A+B      = "+A.add(B));
-        System.out.println("A+C      = "+A.add(C));
-        System.out.println("2*A      = "+A.multiply(2.0));
-        System.out.println("A*C      = "+A.multiply(C));
-        System.out.println("B*C      = "+B.multiply(C));
-        System.out.println("A*A      = "+A.multiply(A));
-        System.out.println("A/B      = "+A.divide(B));
-        System.out.println("A/C      = "+A.divide(C));
-        System.out.println("A/A      = "+A.divide(A));
-        System.out.println("A^2      = "+A.pow(2));
-        System.out.println("A^4      = "+A.pow(4));
-        System.out.println("A^(-1)   = "+A.pow(-1));
-        Complex D = new Complex();
-        System.out.println("0^3      = "+D.pow(3));
-
-        // Chaining the different operations together.
-        System.out.println("\nChained operators:");
-        System.out.println("B*(A+C)    = "+B.multiply(A.add(C)));
-        System.out.println("-A+B*C     = "+A.minus().multiply(B.add(C)));
     }
 }
