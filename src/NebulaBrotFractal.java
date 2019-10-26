@@ -81,47 +81,24 @@ public class NebulaBrotFractal extends BhuddabrotFractal{
 
         escapingPoints.clear();
 
+        // Maximum overall number of passes though a pixel
         int maxPixelIter = 0;
+
+        // Maximum number of passes though a pixel during red, green, and blue channel iterations
         int maxRedPixelIter = 0;
         int maxGreenPixelIter = 0;
         int maxBluePixelIter = 0;
 
         for (int i = 0; i < fractalPixels.length; i++) {
-
-            if (redChannel[i] > maxRedPixelIter) {
-                maxRedPixelIter = redChannel[i];
-            }
-
-            if (greenChannel[i] > maxGreenPixelIter) {
-                maxGreenPixelIter = greenChannel[i];
-            }
-
-            if (blueChannel[i] > maxBluePixelIter) {
-                maxBluePixelIter = blueChannel[i];
-            }
-
+            maxRedPixelIter = Math.max(redChannel[i], maxRedPixelIter);
+            maxGreenPixelIter = Math.max(greenChannel[i], maxGreenPixelIter);
+            maxBluePixelIter = Math.max(blueChannel[i], maxBluePixelIter);
         }
 
-        int maxRGBPixelIter = maxRedPixelIter;
-
-        if (maxGreenPixelIter > maxRGBPixelIter) {
-
-            if (maxGreenPixelIter > maxBluePixelIter){
-                maxRGBPixelIter = maxGreenPixelIter;
-            }else {
-                maxRGBPixelIter = maxBluePixelIter;
-            }
-
-        }else {
-            if (maxBluePixelIter > maxRGBPixelIter) {
-                maxRGBPixelIter = maxBluePixelIter;
-            }
-        }
+        int maxRGBPixelIter = Math.max(maxRedPixelIter, Math.max(maxGreenPixelIter, maxBluePixelIter));
 
         for (int i: iterationCounts) {
-            if (i > maxPixelIter){
-                maxPixelIter = i;
-            }
+            maxPixelIter = Math.max(i, maxPixelIter);
         }
 
         System.out.println("Max pixel iterations (r,g,b,total): (" + maxRedPixelIter + ", " + maxGreenPixelIter + ", " + maxBluePixelIter + ", " +maxRGBPixelIter +")");
@@ -129,21 +106,10 @@ public class NebulaBrotFractal extends BhuddabrotFractal{
         float r, g, b;
 
         for (int i = 0; i < fractalPixels.length; i++) {
-
             r = (float)redChannel[i] / (float)maxRGBPixelIter;
             g = (float)greenChannel[i] / (float)maxRGBPixelIter;
             b = (float)blueChannel[i] / (float)maxRGBPixelIter;
-
-            try {
-
-                fractalPixels[i] = new Color(r, g, b).getRGB();
-
-            }catch(IllegalArgumentException e) {
-
-                System.out.println(i);
-                System.out.println("(" + r + ", " + g + ", " + b + ")\n");
-
-            }
+            fractalPixels[i] = new Color(r, g, b).getRGB();
         }
 
         System.out.println("Create time: " + (System.currentTimeMillis()-t1));
