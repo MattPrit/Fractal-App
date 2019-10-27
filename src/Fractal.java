@@ -436,6 +436,13 @@ public abstract class Fractal {
 
     }
 
+    /**
+     * Colors a pixel in the image according to a given HSB hue value.
+     *
+     * @param x   x-axis co-ordinate of the pixel located at (i,j)
+     * @param y   y-axis co-ordinate of the pixel located at (i,j)
+     * @param hue A float indicating the HSB hue value with which to color the pixel.
+     */
     public void colorPixel(int x, int y, float hue) {
         g2.setColor(Color.getHSBColor(hue, 1, 1));
         g2.fillRect(x, y, 1, 1);
