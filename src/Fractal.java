@@ -8,8 +8,6 @@ import java.util.concurrent.*;
 
 enum ColorStyle {NO_SHADING, RAINBOW, THREECOLOUR, TWOCOLOUR}
 
-enum ColorMode {HISTOGRAM, ESCAPE_TIME}
-
 public abstract class Fractal {
 
     /**
@@ -41,11 +39,6 @@ public abstract class Fractal {
      * A ColorStyle type indicating what type of color map used when coloring our image
      */
     ColorStyle colorStyle;
-
-    /**
-     * A ColorMode type indicating which algorithm should be used to color pixels of the image
-     */
-    ColorMode colorMode;
 
     /**
      * An array holding colours of the image for continuous colouring modes
@@ -117,8 +110,6 @@ public abstract class Fractal {
         this.centre        = centre;
 
         this.numThreads = Runtime.getRuntime().availableProcessors();
-
-        this.colorMode = ColorMode.ESCAPE_TIME;
     }
 
     // ========================================================
@@ -176,14 +167,6 @@ public abstract class Fractal {
 
     void setColorStyle(ColorStyle colorStyle) {
         this.colorStyle = colorStyle;
-    }
-
-    ColorMode getColorMode() {
-        return this.colorMode;
-    }
-
-    void setColorMode(ColorMode colorMode) {
-        this.colorMode = colorMode;
     }
 
     public BufferedImage getFractalImage() {
@@ -272,13 +255,12 @@ public abstract class Fractal {
 
         fractalImage = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB);
         fractalPixels = ((DataBufferInt) fractalImage.getRaster().getDataBuffer()).getData();
-        g2      = fractalImage.createGraphics();
+        g2 = fractalImage.createGraphics();
 
         iterationCounts = new int[imageWidth*imageHeight];
         pixelColorNums = new int[imageWidth*imageHeight]; // Rename pixelColorIDs?
         pixelHues = new float[imageWidth*imageHeight];
         numPixelsPerIteration = new int[this.iterator.getMaxIterations()+1];
-        for (int i = 0; i < this.iterator.getMaxIterations(); i++) { numPixelsPerIteration[i] = 0; }
         System.out.println("Setup time: " + (System.currentTimeMillis()-t1));
     }
 
@@ -372,7 +354,7 @@ public abstract class Fractal {
                 iterationCounts[pixelIndex] = numIter;
                 pixelColorNums[pixelIndex] = pixelResult[0];
                 pixelHues[pixelIndex] = 0;
-                numPixelsPerIteration[numIter] ++; //TODO: fix this counter in the above code for translation to allow for histogram colouring.
+                numPixelsPerIteration[numIter] ++;
 
             }
         }
@@ -496,7 +478,7 @@ public abstract class Fractal {
             }
         }
 
-        colorRect(x, y, width, height);
+        //colorRect(x, y, width, height);
 
     }
 
@@ -512,48 +494,18 @@ public abstract class Fractal {
         this.setupColorMap(this.getOrder() + 1, this.getMaxIterations());
         int ourColor, numIter;
 
-        switch (this.colorMode) {
+        for (int i=x; i < x+width; i++) {
+            for (int j = y; j < y+height; j++) {
 
-            case ESCAPE_TIME:
-                for (int i=x; i < x+width; i++) {
-                    for (int j = y; j < y+height; j++) {
-
-                        numIter = iterationCounts[j*imageWidth+i];
-                        ourColor = pixelColorNums[j*imageWidth+i];
-                        if (numIter==0 && ourColor==0) {System.out.println("Black line at y: " + y + "; height: " + imageHeight);}
-                        try {
-                            colorPixel(i , j, ourColor, numIter);
-                        }catch (ArrayIndexOutOfBoundsException e) {
-                            //System.out.println(ourColor);
-                        }
-                    }
+                numIter = iterationCounts[j*imageWidth+i];
+                ourColor = pixelColorNums[j*imageWidth+i];
+                if (numIter==0 && ourColor==0) {System.out.println("Black line at y: " + y + "; height: " + imageHeight);}
+                try {
+                    colorPixel(i , j, ourColor, numIter);
+                }catch (ArrayIndexOutOfBoundsException e) {
+                    //System.out.println(ourColor);
                 }
-                break;
-
-            case HISTOGRAM:
-                int total = 0;
-                for (int i = 0; i < this.getMaxIterations(); i++) { total += numPixelsPerIteration[i];}
-
-                for (int i=x; i < x+width; i++) {
-                    for (int j = y; j < y+height; j++) {
-
-                        numIter = iterationCounts[j*imageWidth+i];
-                        ourColor = pixelColorNums[j*imageWidth+i];
-
-                        if (ourColor == 0) {
-                            colorPixel(x , y, ourColor, numIter);
-                        }
-
-                        else {
-                            for (int k = 0; k < numIter; k++) {
-                                pixelHues[j*imageWidth+i] += (float) numPixelsPerIteration[k] / total;
-                            }
-                            colorPixel(i, j, pixelHues[j*imageWidth+i]);
-                        }
-                    }
-                }
-
-                break;
+            }
         }
 
     }

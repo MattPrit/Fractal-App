@@ -105,10 +105,7 @@ public class BhuddabrotFractal extends Fractal {
         g2 = fractalImage.createGraphics();
 
         iterationCounts = new int[imageWidth*imageHeight];
-        //pixelColorNums = new int[imageWidth*imageHeight];
-        //pixelHues = new float[imageWidth*imageHeight];
         numPixelsPerIteration = new int[this.iterator.getMaxIterations()+1];
-        for (int i = 0; i < this.iterator.getMaxIterations(); i++) { numPixelsPerIteration[i] = 0; }
 
         System.out.println("Setup time: " + (System.currentTimeMillis()-t1));
     }
@@ -208,6 +205,8 @@ public class BhuddabrotFractal extends Fractal {
     }
 
     public static void main(String args[]) {
+
+        // Produces a nebulabrot image 'manually' using 3 BhuddaBrotFractals
 
         Fractal f = new BhuddabrotFractal(new Complex(-0.4), 1080,1920, 1.0, 1000, ColorStyle.TWOCOLOUR, 10000000);
         Fractal f2 = new BhuddabrotFractal(new Complex(-0.4), 1080,1920, 1.0, 750, ColorStyle.TWOCOLOUR, 7500000);
