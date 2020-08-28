@@ -1,8 +1,10 @@
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 enum FractalMode {MANDELBROT, JULIA, NEWTON, BURNINGSHIP, MULTIBROT, TRICORN, BHUDDABROT}
 
@@ -21,7 +23,17 @@ public class FractalApp {
             public void run() {
 
                 appFrame = new JFrame("Fractal App");
-                appFrame.setIconImage(new ImageIcon(getClass().getResource("/Resources/Images/Iconv2.png")).getImage());
+                /*BufferedImage img = null;
+                try {
+                    img = ImageIO.read(this.getClass().getResourceAsStream("/resources/Images/Iconv2.png"));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                if (img != null){
+                    ImageIcon icon = new ImageIcon(img);
+                    appFrame.setIconImage(icon.getImage());
+                }*/
+                //appFrame.setIconImage(new ImageIcon(this.getClass().getResource("/Resources/Images/Iconv2.png")).getImage());
                 appFrame.setSize(800, 480);
                 appFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
@@ -51,10 +63,10 @@ public class FractalApp {
         mainMenu.setSize(this.appFrame.getSize());
 
         JPanel backgroundFrame = new JPanel();
-        ImageIcon backgroundImage = new ImageIcon(getClass().getResource("/Resources/Images/background1.png"));
+        /*ImageIcon backgroundImage = new ImageIcon(getClass().getResource("/Resources/Images/background1.png"));
         JLabel menuBackground = new JLabel(backgroundImage);
         backgroundFrame.setBounds(0, -4, backgroundImage.getIconWidth(), backgroundImage.getIconHeight());
-        backgroundFrame.add(menuBackground);
+        backgroundFrame.add(menuBackground);*/
 
         JPanel fractalSelectionBox = new JPanel();
         fractalSelectionBox.setBorder(BorderFactory.createTitledBorder("Choose fractal type"));
@@ -366,6 +378,11 @@ public class FractalApp {
         for (int j=0; j<this.fractal.getOrder()+1; j++) {
             fractalControlPanel.add(this.getColourButton(j));
         }
+
+        JToggleButton multithreadButton = new JToggleButton("Toggle multithreaded rendering", true);
+        multithreadButton.addActionListener((e -> this.fractal.toggleMultithreadingEnabled()));
+
+        fractalControlPanel.add(multithreadButton);
 
         return fractalControlPanel;
     }
