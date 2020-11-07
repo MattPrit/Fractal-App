@@ -104,6 +104,13 @@ public class Complex {
             return x + "+" + Math.abs(y) + "i";
     }
 
+    public String toShortString() {
+        if (y < 0.0)
+            return String.format("%10.2f - %10.2fi", x, Math.abs(y));
+        else
+            return String.format("%10.2f + %10.2fi", x, Math.abs(y));
+    }
+
     /**
      * Computes square of the absolute value (magnitude) of the complex number
      * (i.e. |z|^2).

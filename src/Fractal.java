@@ -110,6 +110,7 @@ public abstract class Fractal {
         this.centre        = centre;
 
         this.numThreads = Runtime.getRuntime().availableProcessors();
+        this.fractalRenderer = new MultithreadedRenderer();
     }
 
     // ========================================================
@@ -255,7 +256,7 @@ public abstract class Fractal {
 
         fractalImage = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB);
         fractalPixels = ((DataBufferInt) fractalImage.getRaster().getDataBuffer()).getData();
-        g2 = fractalImage.createGraphics();
+        //g2 = fractalImage.createGraphics();
 
         iterationCounts = new int[imageWidth*imageHeight];
         pixelColorNums = new int[imageWidth*imageHeight]; // Rename pixelColorIDs?
@@ -274,16 +275,16 @@ public abstract class Fractal {
         long t0 = System.currentTimeMillis();
 
         if (this.multithreadingEnabled) {
-            multithreadedTestCreate();
+            try {
+                fractalRenderer.render();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }else{
             renderRect(0, 0, imageWidth, imageHeight);
-            colorFractal();
             //g2.drawImage(fractalImage,0,0, imageWidth, imageHeight, null);
         }
-
-        if (this.supersamplingEnabled) {
-            supersampleTest();
-        }
+        colorFractal();
 
         long t1 = System.currentTimeMillis();
         System.out.println("Create time: " + (t1-t0));
@@ -368,9 +369,7 @@ public abstract class Fractal {
      * Colors all the pixels of the fractal image
      */
     public void colorFractal() {
-
         colorRect(0, 0, imageWidth, imageHeight);
-
     }
 
     /**
@@ -387,17 +386,13 @@ public abstract class Fractal {
         else {
             if (ourColor == 0){
                 fractalPixels[pixelIndex] = colors[0].getRGB();
-            }if (ourColor != 0){
-                Color color = colorMap[ourColor][numIterations-1];
-
-                try {
-                    int col = color.getRGB();
-                    fractalPixels[pixelIndex] = col;
-                }catch (NullPointerException e) {
-                    System.out.println(fractalPixels[pixelIndex]);
-                    System.out.println("Nullpointer! (x,y): "+pixelIndex+" ourColor: " + ourColor + " numiterations: " + numIterations);
-                }
-
+            }else try {
+                Color color = colorMap[ourColor][numIterations - 1];
+                int col = color.getRGB();
+                fractalPixels[pixelIndex] = col;
+            } catch (NullPointerException e) {
+                System.out.println(fractalPixels[pixelIndex]);
+                System.out.println("Nullpointer in colorPixel! (x,y): " + pixelIndex + " ourColor: " + ourColor + " numiterations: " + numIterations);
             }
         }
 
@@ -418,17 +413,17 @@ public abstract class Fractal {
 
     }
 
-    /**
+    /*/**
      * Colors a pixel in the image according to a given HSB hue value.
      *
      * @param x   x-axis co-ordinate of the pixel located at (i,j)
      * @param y   y-axis co-ordinate of the pixel located at (i,j)
      * @param hue A float indicating the HSB hue value with which to color the pixel.
-     */
+     *
     public void colorPixel(int x, int y, float hue) {
         g2.setColor(Color.getHSBColor(hue, 1, 1));
         g2.fillRect(x, y, 1, 1);
-    }
+    }*/
 
     /**
      * Saves the fractalImage image to a file.
@@ -464,22 +459,19 @@ public abstract class Fractal {
                 complex = pixelToComplex(i, j);
                 index = j*imageWidth+i;
 
-                iterateData = this.iterator.iterate(complex);
+                if (this.supersamplingEnabled) {
+                    iterateData = supersamplePixel(i, j, this.iterator.iterate(complex));
+                } else {
+                    iterateData = this.iterator.iterate(complex);
+                }
 
                 iterationCounts[index] = iterateData[1];
                 pixelColorNums[index] = iterateData[0];
                 pixelHues[index] = 0;
                 numPixelsPerIteration[iterateData[1]] ++;
 
-                if (i ==1 || j ==1 || i == (imageWidth-1) || j == (imageWidth-1)) {
-                    // superSamplePixel();
-                }
-
             }
         }
-
-        //colorRect(x, y, width, height);
-
     }
 
     /**
@@ -499,11 +491,13 @@ public abstract class Fractal {
 
                 numIter = iterationCounts[j*imageWidth+i];
                 ourColor = pixelColorNums[j*imageWidth+i];
-                if (numIter==0 && ourColor==0) {System.out.println("Black line at y: " + y + "; height: " + imageHeight);}
+                if (numIter==0 && ourColor==0) {
+                    System.out.println("Black line at y: " + y + "; height: " + imageHeight);
+                }
                 try {
                     colorPixel(i , j, ourColor, numIter);
                 }catch (ArrayIndexOutOfBoundsException e) {
-                    //System.out.println(ourColor);
+                    System.out.println(ourColor);
                 }
             }
         }
@@ -511,9 +505,10 @@ public abstract class Fractal {
     }
 
 
-    private int numThreads;
+    protected int numThreads;
     private boolean multithreadingEnabled = true;
     private boolean supersamplingEnabled = true;
+    private MultithreadedRenderer fractalRenderer;
 
     public void setNumThreads(int n) {
         this.numThreads = n;
@@ -531,19 +526,46 @@ public abstract class Fractal {
         this.multithreadingEnabled = !multithreadingEnabled;
     }
 
+    public boolean getMultithreadingEnabled() {
+        return this.multithreadingEnabled;
+    }
+
     public void toggleMultiSamplingEnabled() {
         this.supersamplingEnabled = !supersamplingEnabled;
     }
 
-    private void multithreadedTestCreate() {
+    public boolean getSupersamplingEnabled() {
+        return this.supersamplingEnabled;
+    }
 
-        MultithreadedRenderer renderer = new MultithreadedRenderer();
-        try {
-            renderer.render();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+    int[] supersamplePixel(int x, int y, int[] iterateData){
+
+        if (iterateData[0] == 0) {
+            return iterateData;
         }
 
+        int subPixelIterationTotal;
+        Complex[] samples = new Complex[4];
+        Complex c;
+        double spd = dz * 0.25; // Sub-pixel distance
+        int[] result = new int[2];
+
+        subPixelIterationTotal = iterateData[1]; //was Copy
+
+        c = pixelToComplex(x, y);
+        samples[0] = c.add(new Complex(-spd, spd));
+        samples[1] = c.add(new Complex(spd, spd));
+        samples[2] = c.add(new Complex(-spd, -spd));
+        samples[3] = c.add(new Complex(spd, -spd));
+
+        for (int k = 0; k < 4; k++) {
+            subPixelIterationTotal += iterator.iterate(samples[k])[1];
+        }
+
+        result[0] = iterateData[0];
+        result[1] = Math.round((float) subPixelIterationTotal / 5f);
+
+        return result;
     }
 
     void supersampleTest(){
@@ -630,16 +652,21 @@ public abstract class Fractal {
 
     public class MultithreadedRenderer {
 
-        int[] regionYCoords;
+        /*
+        Array of ints describing how to split the rendering process into smaller tasks
+        In the regular case we split the image vertically into numThreads rectangles,
+        the section borders correspond to the y coordinates of the dividing lines
+         */
+        int[] sectionBorders;
 
         public void render() throws InterruptedException {
-            System.out.println("Rendering with " + numThreads + " threads...");
+            System.out.println("Rendering ("+imageWidth+"x"+imageHeight+") with " + numThreads + " threads...");
 
-            regionYCoords = new int[numThreads+1];
-            regionYCoords[0] = 0;
-            regionYCoords[numThreads] = imageHeight;
+            sectionBorders = new int[numThreads+1];
+            sectionBorders[0] = 0;
+            sectionBorders[numThreads] = imageHeight;
             for (int i = 1; i < numThreads; i++) {
-                regionYCoords[i] = i*(imageHeight/numThreads);
+                sectionBorders[i] = i*(imageHeight/numThreads);
             }
 
             ExecutorService renderPool = Executors.newFixedThreadPool(numThreads);
@@ -655,23 +682,21 @@ public abstract class Fractal {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
-            //colorFractal();
         }
 
-        private Runnable createRenderThread(final int i) {
-            return () -> renderRegion(i);
+        protected Runnable createRenderThread(final int i) {
+            return () -> renderSection(i);
         }
 
-        public void renderRegion(int regionIndex) {
-            int y = regionYCoords[regionIndex];
-            int height = regionYCoords[regionIndex+1] - y;
+        public void renderSection(int regionIndex) {
+            int y = sectionBorders[regionIndex];
+            int height = sectionBorders[regionIndex+1] - y;
             renderRect(0, y, imageWidth, height);
         }
 
-        public void supersampleRegion(int regionIndex) {
-            int y = regionYCoords[regionIndex];
-            int height = regionYCoords[regionIndex+1] - y;
+        public void supersampleSection(int regionIndex) {
+            int y = sectionBorders[regionIndex];
+            int height = sectionBorders[regionIndex+1] - y;
         }
 
     }

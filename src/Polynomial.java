@@ -48,7 +48,10 @@ public class Polynomial {
         String string = "";
         string += this.coeff[0];
         for (int i=1; i<=this.coeff.length-1; i++){
-            string += " + (" + this.coeff[i] + ")z^" + i  ;
+
+            if (this.coeff[i].abs2() > 1e-10) {
+                string += " + (" + this.coeff[i] + ")z^" + i;
+            }
         }
         return string;
     }

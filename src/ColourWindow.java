@@ -1,4 +1,5 @@
 import javax.swing.*;
+import javax.swing.colorchooser.ColorSelectionModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -19,15 +20,16 @@ public class ColourWindow {
 
         JColorChooser colourChooser = new JColorChooser(colour);
         JFrame window = new JFrame();
-        colourChooser.setPreviewPanel(new JPanel());
+        //colourChooser.setPreviewPanel(new JPanel());
         this.setColour(JColorChooser.showDialog(window, "Pick a colour", colour));
+        JColorChooser.showDialog(new JDialog(), "Test", Color.RED);
 
     }
 
     public static void main(String[] args) {
 
-        ColourWindow cw = new ColourWindow(Color.RED);
-        System.out.println(cw.getColour().toString());
+        //ColourWindow cw = new ColourWindow(Color.RED);
+        //System.out.println(cw.getColour().toString());
 
     }
 }

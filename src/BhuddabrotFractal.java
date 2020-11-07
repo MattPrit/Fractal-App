@@ -12,6 +12,16 @@ public class BhuddabrotFractal extends Fractal {
 
     protected Complex[] randomStartingPoints;
 
+    protected int[][] channels;
+
+    private int[][][] newChannels;
+
+    boolean nebulaModeEnabled;
+
+    private double[] iterCoeffs, pointCoeffs;
+
+    private int[] channelBorders, channelIterations;
+
 
     /**
      * Constructor function which initialises instance variables and
@@ -41,6 +51,14 @@ public class BhuddabrotFractal extends Fractal {
         this.iterator = new MandelbrotIterator(maxIterations);
         setOrder(1);
         this.colorStyle = ColorStyle.TWOCOLOUR;
+        this.randomStartingPoints = new Complex[this.numRandomPoints];
+        this.nebulaModeEnabled = false;
+        this.numThreads = Runtime.getRuntime().availableProcessors();
+
+        this.iterCoeffs = new double[]{0.9, 0.3, 0.1};
+        this.pointCoeffs = new double[]{0.5, 0.4, 0.5};
+        this.channelBorders = new int[3];
+        this.channelIterations = new int[3];
     }
 
     public int getNumRandomPoints() {
@@ -49,6 +67,30 @@ public class BhuddabrotFractal extends Fractal {
 
     public void setNumRandomPoints(int n) {
         this.numRandomPoints = n;
+    }
+
+    public void setPointCoeff(int channelIndex, double coeff) {
+        this.pointCoeffs[channelIndex] = coeff;
+    }
+
+    public void setIterCoeff(int channelIndex, double coeff) {
+        this.iterCoeffs[channelIndex] = coeff;
+    }
+
+    public double getPointCoeff(int channelIndex) {
+        return this.pointCoeffs[channelIndex];
+    }
+
+    public double getIterCoeff(int channelIndex) {
+        return this.iterCoeffs[channelIndex];
+    }
+
+    public boolean getNebulaEnabled() {
+        return this.nebulaModeEnabled;
+    }
+
+    public void toggleNebulaEnabled() {
+        this.nebulaModeEnabled = !this.nebulaModeEnabled;
     }
 
     /**
@@ -91,14 +133,25 @@ public class BhuddabrotFractal extends Fractal {
         this.origin.setImag(this.centre.getImag() + (this.dz * (0.5 * this.imageHeight - 0.5)));
         this.origin.setReal(this.centre.getReal() - (this.dz * (0.5 * this.imageWidth - 0.5)));
 
-        randomStartingPoints = new Complex[this.numRandomPoints];
+        //randomStartingPoints = new Complex[this.numRandomPoints];
         double randArg, randAbs;
 
-        for (int i = 0; i < numRandomPoints; i++) {
-            randArg = Math.random() * 2 * Math.PI;
-            randAbs = Math.random() * 2;
-            randomStartingPoints[i] = (new Complex(Math.cos(randArg), Math.sin(randArg))).multiply(randAbs);
+        int replaceCount = 0;
+
+        if (this.numRandomPoints != this.randomStartingPoints.length) {
+            this.randomStartingPoints = new Complex[numRandomPoints];
         }
+
+        for (int i = 0; i < numRandomPoints; i++) {
+            if (randomStartingPoints[i] == null) {
+                randArg = Math.random() * 2 * Math.PI;
+                randAbs = Math.random() * 1.75 + 0.25;
+                randomStartingPoints[i] = (new Complex(Math.cos(randArg), Math.sin(randArg))).multiply(randAbs);
+                replaceCount ++;
+            }
+        }
+
+        System.out.println("\nReplaced: " + replaceCount);
 
         fractalImage = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB);
         fractalPixels = ((DataBufferInt) fractalImage.getRaster().getDataBuffer()).getData();
@@ -107,12 +160,24 @@ public class BhuddabrotFractal extends Fractal {
         iterationCounts = new int[imageWidth*imageHeight];
         numPixelsPerIteration = new int[this.iterator.getMaxIterations()+1];
 
+        channelBorders[0] = 0;
+        channelBorders[1] = (int)(numRandomPoints * (pointCoeffs[0] / (pointCoeffs[0] + pointCoeffs[1] + pointCoeffs[2])));
+        channelBorders[2] = (int)(numRandomPoints * ((pointCoeffs[0] + pointCoeffs[1]) / (pointCoeffs[0] + pointCoeffs[1] + pointCoeffs[2])));
+
+        channelIterations[0] = (int)(iterCoeffs[0] * this.iterator.getMaxIterations());
+        channelIterations[1] = (int)(iterCoeffs[1] * this.iterator.getMaxIterations());
+        channelIterations[2] = (int)(iterCoeffs[2] * this.iterator.getMaxIterations());
+
+        System.out.println("channel iterations: " + channelIterations[0] + " " + channelIterations[1] + " " + channelIterations[2]);
+        System.out.println("channel points: " + channelBorders[0] + " " + channelBorders[1] + " " + channelBorders[2]);
+
         System.out.println("Setup time: " + (System.currentTimeMillis()-t1));
     }
 
     public void createFractal() {
 
         setupFractal();
+        newChannels = new int [numThreads][3][fractalPixels.length];
 
         long t1 = System.currentTimeMillis();
 
@@ -124,8 +189,6 @@ public class BhuddabrotFractal extends Fractal {
         for (Complex c: randomStartingPoints) {
             if (iterator.iterate(c)[0] == 1) { escapingPoints.add(c); }
         }
-
-        randomStartingPoints = null;
 
         System.out.println("Check points time: " + (System.currentTimeMillis()-t1));
 
@@ -161,7 +224,11 @@ public class BhuddabrotFractal extends Fractal {
 
         long t3 = System.currentTimeMillis();
 
-        colorFractal();
+        if (!nebulaModeEnabled){
+            colorFractal();
+        }
+
+        newChannels = null;
 
         System.out.println("Color time: " + (System.currentTimeMillis()-t3));
         System.out.println("Create time: " + (System.currentTimeMillis()-t1));
@@ -192,14 +259,190 @@ public class BhuddabrotFractal extends Fractal {
         System.out.println("Max iteration for a pixel = " + maxPixelIter);
         System.out.println("Min iteration for a pixel = " + minPixelIter);
 
-        for (int x=0; x<imageWidth; x++) {
-            for (int y=0; y<imageHeight; y++) {
+        for (index=0; index<fractalPixels.length; index++) {
+            numIter = iterationCounts[index];
+            colorPixel(index, 1, numIter+1);
+        }
 
-                index = y*imageWidth+x;
-                numIter = iterationCounts[index];
-                colorPixel(x, y, 1, numIter+1);
+    }
 
+    int getChannelCoeff (int pointIndex) {
+
+        if (pointIndex < channelBorders[1]) {
+            return 0;
+        } else if (pointIndex < channelBorders[2]) {
+            return 1;
+        } else {
+            return 2;
+        }
+
+    }
+
+    void createFractal2() {
+
+        setupFractal();
+
+        long t1 = System.currentTimeMillis();
+
+        newChannels = new int[numThreads][3][fractalPixels.length];
+
+        MultithreadedBhuddabrotRenderer bhuddabrotRenderer = new MultithreadedBhuddabrotRenderer();
+
+        try {
+            bhuddabrotRenderer.render();
+        } catch (InterruptedException e) {
+            System.out.println("Interrupted exception when trying to render");
+            e.printStackTrace();
+        }
+
+        // Maximum overall number of passes though a pixel
+        int maxPixelIter = 0;
+
+        // Maximum number of passes though a pixel during red, green, and blue channel iterations
+        int maxRedPixelIter = 0;
+        int maxGreenPixelIter = 0;
+        int maxBluePixelIter = 0;
+
+        for (int i = 0; i < fractalPixels.length; i++) {
+
+            for (int j=1; j<numThreads; j++) {
+                newChannels[0][0][i] += newChannels[j][0][i];
+                newChannels[0][1][i] += newChannels[j][1][i];
+                newChannels[0][2][i] += newChannels[j][2][i];
             }
+
+            maxRedPixelIter = Math.max(newChannels[0][0][i], maxRedPixelIter);
+            maxGreenPixelIter = Math.max(newChannels[0][1][i], maxGreenPixelIter);
+            maxBluePixelIter = Math.max(newChannels[0][2][i], maxBluePixelIter);
+
+            iterationCounts[i] += (newChannels[0][0][i] + newChannels[0][1][i] + newChannels[0][2][i]);
+            maxPixelIter = Math.max(iterationCounts[i], maxPixelIter);
+        }
+
+        int maxRGBPixelIter = Math.max(maxRedPixelIter, Math.max(maxGreenPixelIter, maxBluePixelIter));
+
+        System.out.println("Max pixel iterations (r,g,b,total): (" + maxRedPixelIter + ", " + maxGreenPixelIter + ", " + maxBluePixelIter + ", " + maxPixelIter +")");
+
+        if (!nebulaModeEnabled) {
+            colorFractal();
+        } else {
+
+            float r, g, b;
+
+            for (int i = 0; i < fractalPixels.length; i++) {
+                r = (float)newChannels[0][0][i] / (float)maxRGBPixelIter;
+                g = (float)newChannels[0][1][i] / (float)maxRGBPixelIter;
+                b = (float)newChannels[0][2][i] / (float)maxRGBPixelIter;
+                fractalPixels[i] = new Color(r, g, b).getRGB();
+            }
+
+        }
+
+        newChannels = null;
+
+        System.out.println("Create time: " + (System.currentTimeMillis()-t1));
+
+    }
+
+    void renderChannel(int threadNum, int start, int numPoints) {
+
+        int numIterations, pixelIndex, channelCoeff;
+        Complex c, z_n;
+        boolean neverEntersImage;
+
+        int [] result;
+
+        int neverEntersCount = 0;
+        int escapeCount = 0;
+
+        for (int i=start; i<start+numPoints; i++) {
+
+            neverEntersImage = true;
+            channelCoeff = getChannelCoeff(i); //int) (3 * (float)i / (float)(numRandomPoints+1));
+
+            result = ((MandelbrotIterator)iterator).iterate(randomStartingPoints[i], channelIterations[channelCoeff]);
+
+            if (result[0] == 0) {
+                randomStartingPoints[i] = null;
+            } else {
+                c = randomStartingPoints[i];
+                escapeCount ++;
+                numIterations = 1;
+                z_n = new Complex(c.getReal(), c.getImag());
+
+                while (numIterations < maxIterations) {
+
+                    if (isPointInImage(z_n)) {
+
+                        neverEntersImage = false;
+                        pixelIndex = getPixelIndex(z_n);
+
+                        try {
+                            newChannels[threadNum][channelCoeff][pixelIndex] ++;
+                        } catch (ArrayIndexOutOfBoundsException e) {
+                            System.out.println("Array index exception i="+i+" coeff="+channelCoeff);
+                        }
+
+                    }
+
+                    if (z_n.abs2() > 4) {
+                        break;
+                    }
+
+                    numIterations ++;
+                    z_n = z_n.multiply(z_n).add(c);
+                }
+
+                if (neverEntersImage) {
+                    randomStartingPoints[i] = null;
+                    neverEntersCount ++;
+                }
+            }
+
+        }
+
+        System.out.println("No escaping points ("+threadNum+"): " + escapeCount);
+        System.out.println("No never-entering points ("+threadNum+"): " + neverEntersCount);
+
+    }
+
+    class MultithreadedBhuddabrotRenderer extends MultithreadedRenderer {
+
+        /*
+        In this case the sectionBorders array becomes
+         */
+
+        public void render() throws InterruptedException {
+
+            //numThreads=3;
+            System.out.println("Rendering ("+imageWidth+"x"+imageHeight+") of " +getNumRandomPoints() + " points with " + numThreads + " threads...");
+
+            sectionBorders = new int[numThreads+1];
+            sectionBorders[0] = 0;
+            sectionBorders[numThreads] = getNumRandomPoints();
+            for (int i = 1; i < numThreads; i++) {
+                sectionBorders[i] = i*(getNumRandomPoints()/numThreads);
+            }
+
+            ExecutorService renderPool = Executors.newFixedThreadPool(numThreads);
+
+            for(int i=0; i<numThreads; i++) {
+                renderPool.execute(createRenderThread(i));
+            }
+
+            renderPool.shutdown();
+
+            try {
+                renderPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        public void renderSection(int sectionIndex) {
+            int start = sectionBorders[sectionIndex];
+            int length = sectionBorders[sectionIndex+1] - start;
+            renderChannel(sectionIndex, start, length);
         }
 
     }

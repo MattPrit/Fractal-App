@@ -28,9 +28,9 @@ public class BurningShipFractal extends Fractal {
         super.colorPixel(x, y, ourColor, numIterations);
     }
 
-    public void colorPixel(int x, int y, float hue) {
+    /*public void colorPixel(int x, int y, float hue) {
         y = imageHeight-y-1;
         super.colorPixel(x, y, hue);
-    }
+    }*/
 
 }

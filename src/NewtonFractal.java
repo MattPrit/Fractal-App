@@ -70,14 +70,16 @@ class NewtonFractal extends Fractal {
         long t3 = System.currentTimeMillis();
         f.saveFractal("fractal-dark.png");
         long t4 = System.currentTimeMillis();
-        Complex complex; int rootColor, numIter;
+        Complex complex;
+        //int rootColor, numIter;
+        int [] result = new int[2];
         for (int i = 0; i < 500; i++) {
             for (int j = 0; j < 500; j++) {
                 complex = f.pixelToComplex(i, j);
-                f.iterator.iterate(complex);
-                rootColor = f.iterator.getError();
-                numIter = f.iterator.getNumIterations();
-                f.colorPixel(i, j, rootColor, numIter);
+                result = f.iterator.iterate(complex);
+                //rootColor = f.iterator.getError();
+                //numIter = f.iterator.getNumIterations();
+                f.colorPixel(i, j, result[0], result[1]);
             }
         }
         long t5 = System.currentTimeMillis();
